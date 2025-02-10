@@ -51,7 +51,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestGetGroup(t *testing.T) {
-	groupName := "testGroup"
+	groupName := "empty"
 	NewGroup(groupName, 2<<10, GetterFunc(
 		func(key string) (_ []byte, _ error) { return }))
 
