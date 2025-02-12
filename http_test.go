@@ -16,6 +16,7 @@ func TestHTTPPool(t *testing.T) {
 		}))
 
 	resp := poolFetch(p, "identity", "key")
+	resp.Body.Close()
 	if b, _ := io.ReadAll(resp.Body); resp.StatusCode != http.StatusOK || string(b) != "key" {
 		t.Fatalf("HTTP Get failed (expected: key, got: %s)", b)
 	}

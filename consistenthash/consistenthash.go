@@ -30,8 +30,12 @@ func New(weight int, fn Hash) *Ring {
 }
 
 // Add adds nodes to the ring.
+// Empty node names are ignored.
 func (m *Ring) Add(nodeNames ...string) {
 	for _, nodeName := range nodeNames {
+		if nodeName == "" {
+			continue
+		}
 		for i := range m.weight {
 			hash := m.hash([]byte(fmt.Sprintf("%s_v%d", nodeName, i)))
 			m.nodes = append(m.nodes, hash)

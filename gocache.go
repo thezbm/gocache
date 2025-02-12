@@ -26,7 +26,7 @@ type Group struct {
 }
 
 var (
-	rwMut  sync.RWMutex
+	mu     sync.RWMutex
 	groups = make(map[string]*Group)
 )
 
@@ -36,8 +36,8 @@ func NewGroup(name string, capacity int64, getter Getter) *Group {
 	if getter == nil {
 		panic("getter is nil")
 	}
-	rwMut.Lock()
-	defer rwMut.Unlock()
+	mu.Lock()
+	defer mu.Unlock()
 	g := &Group{
 		name:      name,
 		getter:    getter,
@@ -50,9 +50,9 @@ func NewGroup(name string, capacity int64, getter Getter) *Group {
 // GetGroup returns the Group instance by name.
 // If the group does not exist, it returns nil.
 func GetGroup(name string) *Group {
-	rwMut.RLock()
+	mu.RLock()
 	g := groups[name]
-	rwMut.RUnlock()
+	mu.RUnlock()
 	return g
 }
 
