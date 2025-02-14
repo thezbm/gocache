@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"sync"
+
+	"github.com/thezbm/gocache/singleflight"
 )
 
 // A Getter loads data in bytes with a key.
@@ -24,6 +26,7 @@ type Group struct {
 	getter    Getter
 	mainCache cache
 	peers     PeerPicker
+	sg        singleflight.Group
 }
 
 var (
@@ -43,6 +46,7 @@ func NewGroup(name string, capacity int64, getter Getter) *Group {
 		name:      name,
 		getter:    getter,
 		mainCache: cache{capacity: capacity},
+		sg:        singleflight.Group{},
 	}
 	groups[name] = g
 	return g
@@ -67,7 +71,10 @@ func (g *Group) Get(key string) (ByteView, error) {
 		log.Printf("[gocache] hit with key=%s", key)
 		return v, nil
 	}
-	return g.load(key)
+	value, err := g.sg.Do(key, func() (any, error) {
+		return g.load(key)
+	})
+	return value.(ByteView), err
 }
 
 // Load loads the value either from its peers or from the local node by calling the getter.
