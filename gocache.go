@@ -23,6 +23,7 @@ type Group struct {
 	name      string
 	getter    Getter
 	mainCache cache
+	peers     PeerPicker
 }
 
 var (
@@ -70,8 +71,16 @@ func (g *Group) Get(key string) (ByteView, error) {
 }
 
 // Load loads the value either from its peers or from the local node by calling the getter.
-func (g *Group) load(key string) (value ByteView, err error) {
-	// Now we only support local loading.
+func (g *Group) load(key string) (ByteView, error) {
+	if g.peers != nil {
+		if peer, ok := g.peers.PickPeer(key); ok {
+			value, err := g.getFromPeer(peer, key)
+			if err == nil {
+				return value, nil
+			}
+			log.Println("[gocache] failed to get from peer", err)
+		}
+	}
 	return g.getLocally(key)
 }
 
@@ -90,4 +99,21 @@ func (g *Group) getLocally(key string) (ByteView, error) {
 // populateCache stores the value in the cache of the group.
 func (g *Group) populateCache(key string, value ByteView) {
 	g.mainCache.set(key, value)
+}
+
+// getFromPeer retrieves the value from the peer.
+func (g *Group) getFromPeer(peer Peer, key string) (ByteView, error) {
+	bytes, err := peer.Get(g.name, key)
+	if err != nil {
+		return ByteView{}, err
+	}
+	return ByteView{bytes: bytes}, nil
+}
+
+// RegisterPeers registers a PeerPicker for choosing remote peers.
+func (g *Group) RegisterPeers(peers PeerPicker) {
+	if g.peers != nil {
+		panic("[gocache] RegisterPeers called more than once")
+	}
+	g.peers = peers
 }
