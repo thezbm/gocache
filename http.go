@@ -9,6 +9,9 @@ import (
 	"sync"
 
 	"github.com/thezbm/gocache/consistenthash"
+	pb "github.com/thezbm/gocache/gocachepb"
+
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -59,9 +62,15 @@ func (p *HTTPPool) GetHTTPHandler() http.Handler {
 			return
 		}
 
+		body, err := proto.Marshal(&pb.Response{Value: view.ByteSlice()})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
 		// Set header content type to generic binary data.
 		w.Header().Set("Content-Type", "application/octet-stream")
-		w.Write(view.ByteSlice())
+		w.Write(body)
 	})
 
 	// Handle bad requests.
@@ -106,24 +115,27 @@ type httpPeer struct {
 	baseURL string
 }
 
-// Get sends a GET request to the remote peer for the given group and key.
-func (h *httpPeer) Get(group string, key string) ([]byte, error) {
+// Get sends a GET request to the remote peer for the given group and key in the Protocol Buffer request.
+func (h *httpPeer) Get(in *pb.Request, out *pb.Response) error {
 	url := fmt.Sprintf("%s/%s/%s",
-		h.baseURL, url.QueryEscape(group), url.QueryEscape(key))
+		h.baseURL, url.QueryEscape(in.GetGroup()), url.QueryEscape(in.GetKey()))
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("endpoint %s returned: %s", h.baseURL, resp.Status)
+		return fmt.Errorf("endpoint %s returned: %s", h.baseURL, resp.Status)
 	}
 
 	bytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("reading response body: %v", err)
+		return fmt.Errorf("reading response body: %v", err)
 	}
 
-	return bytes, nil
+	if err = proto.Unmarshal(bytes, out); err != nil {
+		return fmt.Errorf("decoding response body: %v", err)
+	}
+	return nil
 }

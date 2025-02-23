@@ -5,6 +5,7 @@ import (
 	"log"
 	"sync"
 
+	pb "github.com/thezbm/gocache/gocachepb"
 	"github.com/thezbm/gocache/singleflight"
 )
 
@@ -110,11 +111,16 @@ func (g *Group) populateCache(key string, value ByteView) {
 
 // getFromPeer retrieves the value from the peer.
 func (g *Group) getFromPeer(peer Peer, key string) (ByteView, error) {
-	bytes, err := peer.Get(g.name, key)
+	req := &pb.Request{
+		Group: g.name,
+		Key:   key,
+	}
+	resp := &pb.Response{}
+	err := peer.Get(req, resp)
 	if err != nil {
 		return ByteView{}, err
 	}
-	return ByteView{bytes: bytes}, nil
+	return ByteView{bytes: resp.Value}, nil
 }
 
 // RegisterPeers registers a PeerPicker for choosing remote peers.
